@@ -1,7 +1,7 @@
 local opt = vim.opt
 
 -- Popup menu
-opt.completeopt = "menuone,noselect"
+opt.completeopt = "menuone,noselect,popup" -- "popup" auto-shows the highlighted item's documentation
 opt.pumheight = 10
 
 -- Command-line completion
@@ -42,5 +42,24 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end
 
     vim.lsp.completion.enable(true, client.id, args.buf, { autotrigger = true })
+
+    if client:supports_method("textDocument/signatureHelp") then
+      local signature_provider = client.server_capabilities.signatureHelpProvider
+      local signature_chars = {}
+      vim.list_extend(signature_chars, signature_provider.triggerCharacters or {})
+      vim.list_extend(signature_chars, signature_provider.retriggerCharacters or {})
+
+      vim.api.nvim_create_autocmd("TextChangedI", {
+        group = augroup,
+        buffer = args.buf,
+        callback = function()
+          local col = vim.fn.col(".") - 1
+          local char = vim.fn.getline("."):sub(col, col)
+          if vim.tbl_contains(signature_chars, char) then
+            vim.lsp.buf.signature_help()
+          end
+        end,
+      })
+    end
   end,
 })
